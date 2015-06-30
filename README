@@ -1,0 +1,53 @@
+The requirement for this program is on: http://www3.cs.stonybrook.edu/~mikepo/CSE508/hw/hw3.txt
+
+0. Environment && Build:
+   
+    Developed and tested in Ubuntu 12.04.5 LTS with 3.13.0-46-generic linux core
+    gcc (Ubuntu/Linaro 4.6.3-1ubuntu5) 4.6.3
+    -------------------------------------------------------    
+    make clean && make
+    -------------------------------------------------------    
+
+1. User manual
+
+1.1 server-mode:
+
+    The setup command looks like as following:
+    -------------------------------------------------------    
+    ./pbproxy -l 1234 -k mykey 127.0.0.1 22
+    -------------------------------------------------------   
+    
+    By setting the key string of "mykey" and the ip address and port number of sshd server, it will completely proxy the server flow.
+
+1.2 client-mode:
+
+    -------------------------------------------------------    
+    ssh -o "ProxyCommand /home/jian/Shared_folder/Security/assignment/hw3/pbproxy -k mykey 127.0.0.1 1234" localhost
+    -------------------------------------------------------    
+    
+    As command shown above, we should use the ABSOLUTE path of pbproxy instead of relative one. Then "-k" must combine with the same key "mykey" as defined in server-side.
+
+1.3 logging trace
+
+    In header <log.h>, we have macro as "__SERVER_LOG__", which is supposed to use to trace the flows under the server-side. If we set the flag and re-compile, it will print all the flows explicitly for debugging and tracing. (It may slow the performance)
+
+    
+2. Implementation
+
+2.1 Server-client-model
+
+    In this assignment, I use multi-thread model instead of select/epoll. Since it is capable enough to cope with the requirement.
+
+    At the moment of connection setting up:
+    On the proxy server side, it will setup 2 threads to handle the flows of "proxy client => sshd" and "sshd => proxy client" respectively.
+    On the proxy client side, it will also setup 2 threads to handle the flows of incoming and outcoming to the proxy server.
+    
+    The details are in source <proxy_server.h> and <proxy_client.h>   
+
+2.2 Encryption
+    
+    The system apply AES encryption in CTR mode. It creates a randomly new IV only once for each TCP connection at the beginning of connection-setup, by using "RAND_bytes" library function. 
+    
+    For the counter, it initiates one counter for each direction. That is one counter for incomming flow and one for outgoing. In other words, one counter for one thread. The reason is that in the situation of multi-thread, there may occur multi-thread confliction that using the counter concurrently. Such design will eliminate this possible situation.
+
+    The details are in source <proxy_server.h> and <proxy_client.h>
